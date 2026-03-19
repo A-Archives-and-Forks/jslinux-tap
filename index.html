@@ -2,6 +2,7 @@
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>学习修改linux内核</title>
 <style>
 .term {
@@ -23,6 +24,50 @@
 }
 #clipboard {
     font-size: 12px;
+}
+/* Mobile styles */
+@media (max-width: 768px) {
+    body {
+        margin: 4px;
+        padding-bottom: 56px;
+    }
+    h1 { font-size: 16px; margin: 4px 0; }
+    table { width: 100%; }
+    .term {
+        font-size: 11px;
+        overflow-x: auto;
+        display: block;
+        white-space: nowrap;
+    }
+    #mobile-toolbar {
+        position: fixed;
+        bottom: 0; left: 0; right: 0;
+        background: #1a1a1a;
+        padding: 4px;
+        display: flex;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        gap: 4px;
+        z-index: 1000;
+        border-top: 1px solid #444;
+        -webkit-overflow-scrolling: touch;
+    }
+    #mobile-toolbar button {
+        background: #3a3a3a;
+        color: #fff;
+        border: 1px solid #555;
+        border-radius: 4px;
+        padding: 8px 12px;
+        font-size: 13px;
+        white-space: nowrap;
+        flex-shrink: 0;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+        cursor: pointer;
+    }
+    #mobile-toolbar button:active {
+        background: #555;
+    }
 }
 </style>
 </head>

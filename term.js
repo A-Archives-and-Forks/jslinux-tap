@@ -34,6 +34,7 @@ function Term(fa, ga, ha) {
     this.def_attr = (7 << 3) | 0;
     this.cur_attr = this.def_attr;
     this.is_mac = (navigator.userAgent.indexOf("Mac") >= 0) ? true : false;
+    this.is_mobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
     this.key_rep_state = 0;
     this.key_rep_str = "";
 }
@@ -59,6 +60,9 @@ Term.prototype.open = function() {
     setInterval(function() {
         ja.cursor_timer_cb();
     }, 1000);
+    if (this.is_mobile) {
+        this._setupMobileInput();
+    }
 };
 Term.prototype.refresh = function(ka, la) {
     var ma, y, ia, na, c, w, i, oa, pa, qa, ra, sa, ta;
@@ -516,6 +520,130 @@ Term.prototype.outputHandler = function() {
         this.handler(this.output_queue);
         this.output_queue = "";
     }
+};
+
+Term.prototype._setupMobileInput = function() {
+    var self = this;
+
+    // Hidden input to trigger the soft keyboard on iOS/Android
+    var hiddenInput = document.createElement('input');
+    hiddenInput.setAttribute('type', 'text');
+    hiddenInput.setAttribute('autocomplete', 'off');
+    hiddenInput.setAttribute('autocorrect', 'off');
+    hiddenInput.setAttribute('autocapitalize', 'off');
+    hiddenInput.setAttribute('spellcheck', 'false');
+    // font-size:16px prevents iOS auto-zoom on focus
+    hiddenInput.style.cssText = 'position:fixed;top:-100px;left:0;width:100%;height:40px;opacity:0;border:0;padding:0;margin:0;font-size:16px;z-index:-1;';
+    document.body.appendChild(hiddenInput);
+    this._hiddenInput = hiddenInput;
+
+    // Tap anywhere on terminal → focus hidden input → show soft keyboard
+    document.addEventListener('touchstart', function(e) {
+        // Don't re-focus if touching a toolbar button
+        if (e.target && e.target.tagName === 'BUTTON') return;
+        hiddenInput.focus();
+    }, false);
+
+    var lastKeyWasSpecial = false;
+
+    // keydown: handle special keys (arrows, ESC, Tab, Enter, Backspace)
+    hiddenInput.addEventListener('keydown', function(e) {
+        var char = '';
+        lastKeyWasSpecial = false;
+        switch (e.keyCode) {
+            case 8:  char = '\x7f';   lastKeyWasSpecial = true; e.preventDefault(); break; // Backspace
+            case 9:  char = '\t';     lastKeyWasSpecial = true; e.preventDefault(); break; // Tab
+            case 13: char = '\r';     lastKeyWasSpecial = true; e.preventDefault(); break; // Enter
+            case 27: char = '\x1b';   lastKeyWasSpecial = true; e.preventDefault(); break; // ESC
+            case 37: char = '\x1b[D'; lastKeyWasSpecial = true; e.preventDefault(); break; // ←
+            case 38: char = '\x1b[A'; lastKeyWasSpecial = true; e.preventDefault(); break; // ↑
+            case 39: char = '\x1b[C'; lastKeyWasSpecial = true; e.preventDefault(); break; // →
+            case 40: char = '\x1b[B'; lastKeyWasSpecial = true; e.preventDefault(); break; // ↓
+        }
+        if (char) {
+            self.show_cursor();
+            self.handler(char);
+        }
+    });
+
+    // input event: capture regular typed characters (and IME input)
+    hiddenInput.addEventListener('input', function(e) {
+        if (lastKeyWasSpecial) {
+            lastKeyWasSpecial = false;
+            hiddenInput.value = '';
+            return;
+        }
+        var inputType = e.inputType || '';
+        // Fallback for browsers that don't fire keydown reliably
+        if (inputType === 'deleteContentBackward') {
+            self.show_cursor();
+            self.handler('\x7f');
+            hiddenInput.value = '';
+            return;
+        }
+        if (inputType === 'insertLineBreak') {
+            self.show_cursor();
+            self.handler('\r');
+            hiddenInput.value = '';
+            return;
+        }
+        var val = hiddenInput.value;
+        hiddenInput.value = '';
+        if (val) {
+            self.show_cursor();
+            self.handler(val);
+        }
+    });
+
+    // Virtual key toolbar for special keys not on soft keyboard
+    var toolbar = document.createElement('div');
+    toolbar.id = 'mobile-toolbar';
+
+    var keys = [
+        { label: 'KB',      special: 'keyboard' },
+        { label: 'ESC',     char: '\x1b' },
+        { label: 'Tab',     char: '\t' },
+        { label: 'Ctrl+C',  char: '\x03' },
+        { label: 'Ctrl+D',  char: '\x04' },
+        { label: 'Ctrl+Z',  char: '\x1a' },
+        { label: '↑',       char: '\x1b[A' },
+        { label: '↓',       char: '\x1b[B' },
+        { label: '←',       char: '\x1b[D' },
+        { label: '→',       char: '\x1b[C' },
+        { label: 'Home',    char: '\x1bOH' },
+        { label: 'End',     char: '\x1bOF' },
+        { label: 'Del',     char: '\x7f' },
+        { label: 'PgUp',    char: '\x1b[5~' },
+        { label: 'PgDn',    char: '\x1b[6~' },
+    ];
+
+    keys.forEach(function(k) {
+        var btn = document.createElement('button');
+        btn.textContent = k.label;
+        if (k.special === 'keyboard') {
+            btn.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                hiddenInput.focus();
+            });
+            btn.addEventListener('click', function() {
+                hiddenInput.focus();
+            });
+        } else {
+            btn.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                self.show_cursor();
+                self.handler(k.char);
+                hiddenInput.focus();
+            });
+            btn.addEventListener('click', function() {
+                self.show_cursor();
+                self.handler(k.char);
+            });
+        }
+        toolbar.appendChild(btn);
+    });
+
+    document.body.appendChild(toolbar);
 };
 
 
